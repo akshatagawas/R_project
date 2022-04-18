@@ -1,0 +1,263 @@
+# install.packages("tidyverse")
+# install.packages("funModeling")
+# install.packages("Hmisc")
+# install.packages("dplyr")
+# install.packages("ggplot2")
+# install.packages("janitor")
+# install.packages("bit64")
+# install.packages("highcharter")
+library(funModeling)
+library(tidyverse)
+library(Hmisc)
+library(ggplot2)
+library(readr)
+library(dplyr)
+library(janitor)
+library(bit64)
+library(highcharter)
+
+
+country_vaccinations <- read_csv("R_Project/country_vaccinations.csv")
+View(country_vaccinations)
+
+
+country_vaccinations.formatted <- country_vaccinations %>%
+  mutate(date = as.Date(date),
+         total_vaccinations = as.integer64(daily_vaccinations)) %>%
+  mutate_at(c('people_vaccinated',
+              'daily_vaccinations_raw',
+              'total_vaccinations',
+              'daily_vaccinations_per_million'), as.integer)
+
+
+
+anyDuplicated(country_vaccinations)
+
+
+immunizations_applied <- country_vaccinations.formatted %>%
+  summarise(total_immunizations = sum(daily_vaccinations, na.rm = TRUE))
+
+immunizations_applied
+
+immunizations_applied_country <- country_vaccinations.formatted %>%
+  group_by(country, iso_code) %>%
+  summarise(total_immunizations = sum(daily_vaccinations, na.rm = TRUE), .groups = 'drop') %>%
+  arrange(desc(total_immunizations))
+
+head(immunizations_applied_country)
+
+
+
+#Vaccinations as per country********************************
+
+# Creation of the graph where the amount of immunizations applied by each country is represented
+hc_my_theme <- hc_theme_merge(hc_theme_flatdark(),
+                              hc_theme(chart = list(backgroundColor = '#242f39'),
+                                       subtitle = list(style = list(color = '#a7a5a5'))))
+
+data(worldgeojson, package = "highcharter")
+
+# Needed some change in the values of the 'country' column to match the geoposition of the 'worldgeojson' dataset
+immunizations_applied_country$country[immunizations_applied_country$country == 'United States'] <- 'United States of America'
+immunizations_applied_country$country[immunizations_applied_country$country == 'Bahamas'] <- 'The Bahamas'
+immunizations_applied_country$country[immunizations_applied_country$country == 'Guinea-Bissau'] <- 'Guinea Bissau'
+immunizations_applied_country$country[immunizations_applied_country$country == "Cote d'Ivoire"] <- 'Ivory Coast'
+immunizations_applied_country$country[immunizations_applied_country$country == 'Congo'] <- 'Republic of Congo'
+immunizations_applied_country$country[immunizations_applied_country$country == 'Democratic Republic of Congo'] <- 'Democratic Republic of the Congo'
+immunizations_applied_country$country[immunizations_applied_country$country == 'Tanzania'] <- 'United Republic of Tanzania'
+immunizations_applied_country$country[immunizations_applied_country$country == 'Eswatini'] <- 'Swaziland'
+immunizations_applied_country$country[immunizations_applied_country$country == 'Czechia'] <- 'Czech Republic'
+immunizations_applied_country$country[immunizations_applied_country$country == 'Serbia'] <- 'Republic of Serbia'
+immunizations_applied_country$country[immunizations_applied_country$country == 'Timor'] <- 'East Timor'
+immunizations_applied_country$country[immunizations_applied_country$country == 'North Macedonia'] <- 'Macedonia'
+
+# Chart creation
+plot_immunizations_applied_country <- highchart() %>% 
+  hc_add_series_map(worldgeojson,
+                    immunizations_applied_country,
+                    value = 'total_immunizations',
+                    joinBy = c('name', 'country'),
+                    name = 'Immunizations in:',
+                    borderWidth = 0,
+                    nullColor = "#d3d3d3") %>%
+  hc_title(text = 'Immunizations applied per country') %>%
+  hc_subtitle(text ='How many applied immunizations does each country have?') %>%
+  hc_colorAxis(stops = color_stops(colors = viridisLite::turbo(10,
+                                                               begin = 0.2))) %>%
+  hc_add_theme(hc_my_theme) %>%
+  hc_mapNavigation(enabled = TRUE) %>%
+  hc_credits(enabled = FALSE) %>%
+  hc_exporting(enabled = TRUE)
+
+show(plot_immunizations_applied_country)
+
+
+
+vaccination_number <- country_vaccinations.formatted %>% group_by(country,date, daily_vaccinations, daily_vaccinations_per_million,vaccines) %>% 
+  filter(!is.na(daily_vaccinations)) %>%
+  summarise(daily_vaccinations) %>% 
+  arrange(date)
+View(vaccination_number)
+
+totalPeopleVaccinated <- c()
+num <- 0
+num <- as.double(num)
+find_sum <- as.double(vaccination_number$daily_vaccinations)
+find_sum <- drop_na(find_sum)
+for (i in find_sum) {
+  num <- num + i
+  totalPeopleVaccinated <- append(totalPeopleVaccinated,num)
+  
+}
+
+totalPeopleVaccinated <- data.frame(totalPeopleVaccinated)
+View(totalPeopleVaccinated)
+new_vaccination_number <- cbind(vaccination_number, totalPeopleVaccinated)
+
+options(repr.plot.width = 14, repr.plot.height = 18) # Modification of the size in which the graph is displayed
+plot_vaccination_number <- new_vaccination_number %>%
+  hchart('line',
+         hcaes(x = date,
+               y = totalPeopleVaccinated)) %>% 
+  hc_title(text = 'Immunizations') %>%
+  hc_subtitle(text = 'Number of immunizations applied throughout the days by each manufacturer') %>%
+  hc_xAxis(title = list(text = 'Date')) %>%
+  hc_yAxis(title = list(text ='Total vaccinations')) %>%
+  hc_tooltip(crosshairs = TRUE,
+             shared = TRUE, 
+             borderWidth = 4,
+             sort = TRUE,
+             table = TRUE) %>%
+  hc_add_theme(hc_theme_538()) %>%
+  hc_exporting(enabled = TRUE)
+
+show(plot_vaccination_number)
+
+
+India_vaccinations <- filter(new_vaccination_number, country == "India")
+View(India_vaccinations)
+India_vaccinations$totalPeopleVaccinated<-NULL
+
+
+totalPeopleVaccinated <- c()
+num <- 0
+num <- as.double(num)
+find_sum <- as.double(India_vaccinations$daily_vaccinations)
+find_sum <- drop_na(find_sum)
+for (i in find_sum) {
+  num <- num + i
+  totalPeopleVaccinated <- append(totalPeopleVaccinated,num)
+  
+}
+
+totalPeopleVaccinated <- data.frame(totalPeopleVaccinated)
+View(totalPeopleVaccinated)
+India_vaccinations <- cbind(India_vaccinations, totalPeopleVaccinated)
+
+
+options(repr.plot.width = 14, repr.plot.height = 18) # Modification of the size in which the graph is displayed
+plot_India_vaccinations <- India_vaccinations %>%
+  hchart('line',
+         hcaes(x = date,
+               y = totalPeopleVaccinated)) %>% 
+  hc_title(text = 'Immunizations') %>%
+  hc_subtitle(text = 'Number of immunizations applied throughout the days by each manufacturer') %>%
+  hc_xAxis(title = list(text = 'Date')) %>%
+  hc_yAxis(title = list(text ='Total vaccinations')) %>%
+  hc_tooltip(crosshairs = TRUE,
+             shared = TRUE, 
+             borderWidth = 4,
+             sort = TRUE,
+             table = TRUE) %>%
+  hc_add_theme(hc_theme_538()) %>%
+  hc_exporting(enabled = TRUE)
+
+show(plot_India_vaccinations)
+
+India_vaccinations$vaccines<-NULL
+India_vaccinations$country<-NULL
+
+library(caTools)
+split = sample.split(India_vaccinations$totalPeopleVaccinated, SplitRatio = 0.7)
+trainingset = subset(India_vaccinations, split == TRUE)
+testset = subset(India_vaccinations, split == FALSE)
+
+lm.r= lm(formula = totalPeopleVaccinated ~ date,
+         data = trainingset)
+
+coef(lm.r)
+
+ypred = predict(lm.r, newdata = testset)
+
+
+ggplot() + geom_point(aes(x = trainingset$date,
+                          y = trainingset$totalPeopleVaccinated), colour = 'red') +
+  geom_line(aes(x = trainingset$date,
+                y = predict(lm.r, newdata = trainingset)), colour = 'blue') +
+  
+  ggtitle('Date vs Total vaccinations (Training set)') +
+  xlab('Date') +
+  ylab('Total vaccinations')
+
+ggplot() +
+  geom_point(aes(x = testset$date, y = testset$totalPeopleVaccinated),
+             colour = 'red') +
+  geom_line(aes(x = trainingset$date,
+                y = predict(lm.r, newdata = trainingset)),
+            colour = 'blue') +
+  ggtitle('Date vs Total vaccinations (Test set)') +
+  xlab('Date') +
+  ylab('Total vaccinations')
+
+
+
+qplot(date, totalPeopleVaccinated, data = India_vaccinations, geom = "point")
+qplot(date, totalPeopleVaccinated, data = India_vaccinations, geom = "point") + geom_smooth(method =  "lm", se = FALSE)
+
+model <- lm(totalPeopleVaccinated ~ date + daily_vaccinations, data = India_vaccinations)
+summary(model)
+
+India_vaccinations$residuals <- model$residuals
+India_vaccinations$predicted <- model$fitted.values
+
+predict(model, data.frame(date = c(05-2022), daily_vaccinations = c(700)))
+
+# y <- India_vaccinations$totalPeopleVaccinated
+# 
+# x <- as.matrix(India_vaccinations[-ncol(India_vaccinations)])
+# print(x)
+# 
+# India_vaccinations.formatted <- India_vaccinations %>%
+#   mutate(date = as.numeric(date),
+#          total_vaccinations = as.integer64(daily_vaccinations)) %>%
+#   mutate_at(c('date',
+#               'daily_vaccinations',
+#               'totalPeopleVaccinated',
+#               'daily_vaccinations_per_million'), as.integer)
+# 
+# int <- rep(1, length(y))
+# x <- cbind(int, x)
+# betas <- solve(t(x) %*% x) %*% t(x) %*% y
+
+
+
+# install.packages("caTools")
+# library(caTools)
+# sample.split(new_vaccination_number$totalPeopleVaccinated, SplitRatio = 0.75)->split_index
+# train<-subset(new_vaccination_number,split_index==T)
+# test<-subset(new_vaccination_number,split_index==F)
+# nrow(train)
+# nrow(test)
+# 
+# View(new_vaccination_number$country=="Pitcairn")
+# 
+
+
+
+# lm(totalPeopleVaccinated~.,data = train) -> mod1
+# predict(mod1,test)->result
+# cbind(actual=test$totalPeopleVaccinated,predicted=result)->compare_result
+# as.data.frame(compare_result)->compare_result
+# compare_resulr$actual-compare_result$predicted->error
+# cbind(compare_result,error)
+# sqrt(mean(compare_result$error^2))->rmse1
