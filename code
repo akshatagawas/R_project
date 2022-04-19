@@ -167,6 +167,10 @@ show(plot_India_vaccinations)
 
 #Algorithm
 
+
+
+
+
 dataset1 <- data.frame(date = India_vaccinations$date, Vaccinated_people = India_vaccinations$totalPeopleVaccinated)
 View(dataset1)
 
@@ -176,6 +180,24 @@ day_count <- data.frame(a)
 Dataset <- cbind(dataset1,day_count)
 
 qplot(a, Vaccinated_people, data = Dataset, geom = "point", ylim=c(0,2000000000))+ geom_smooth(method = "lm", se=FALSE)
+
+######
+dataset2 <- data.frame(a = Dataset$a,Vaccinated_people = Dataset$Vaccinated_people)
+y <- dataset2$Vaccinated_people
+print(y)
+View(dataset2)
+X <- as.matrix(dataset2[-ncol(dataset2)])
+int <- rep(1, length(y))
+X <- cbind(int, X)
+
+betas <- solve(t(X) %*% X) %*% t(X) %*% y
+betas <- round(betas, 2)
+print(betas)
+
+prediction <- betas[2]*500 + betas[1]
+print(prediction)
+
+#####
 
 model<-lm(Vaccinated_people~a, data = Dataset)
 plot(model$fitted.values)
