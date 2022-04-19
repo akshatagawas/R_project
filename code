@@ -1,11 +1,4 @@
-# install.packages("tidyverse")
-# install.packages("funModeling")
-# install.packages("Hmisc")
-# install.packages("dplyr")
-# install.packages("ggplot2")
-# install.packages("janitor")
-# install.packages("bit64")
-# install.packages("highcharter")
+library(forecast)
 library(funModeling)
 library(tidyverse)
 library(Hmisc)
@@ -17,13 +10,12 @@ library(bit64)
 library(highcharter)
 
 
-country_vaccinations <- read_csv("R_Project/country_vaccinations.csv")
+country_vaccinations <- read_csv("C:/Users/Akshata/Documents/R_Project/country_vaccinations.csv")
 View(country_vaccinations)
 
 
 country_vaccinations.formatted <- country_vaccinations %>%
-  mutate(date = as.Date(date),
-         total_vaccinations = as.integer64(daily_vaccinations)) %>%
+  mutate(daily_vaccinations = as.integer64(daily_vaccinations)) %>%
   mutate_at(c('people_vaccinated',
               'daily_vaccinations_raw',
               'total_vaccinations',
@@ -32,7 +24,6 @@ country_vaccinations.formatted <- country_vaccinations %>%
 
 
 anyDuplicated(country_vaccinations)
-
 
 immunizations_applied <- country_vaccinations.formatted %>%
   summarise(total_immunizations = sum(daily_vaccinations, na.rm = TRUE))
@@ -43,14 +34,9 @@ immunizations_applied_country <- country_vaccinations.formatted %>%
   group_by(country, iso_code) %>%
   summarise(total_immunizations = sum(daily_vaccinations, na.rm = TRUE), .groups = 'drop') %>%
   arrange(desc(total_immunizations))
-
-head(immunizations_applied_country)
-
+View(immunizations_applied_country)
 
 
-#Vaccinations as per country********************************
-
-# Creation of the graph where the amount of immunizations applied by each country is represented
 hc_my_theme <- hc_theme_merge(hc_theme_flatdark(),
                               hc_theme(chart = list(backgroundColor = '#242f39'),
                                        subtitle = list(style = list(color = '#a7a5a5'))))
@@ -93,6 +79,9 @@ show(plot_immunizations_applied_country)
 
 
 
+#Part 2
+
+
 vaccination_number <- country_vaccinations.formatted %>% group_by(country,date, daily_vaccinations, daily_vaccinations_per_million,vaccines) %>% 
   filter(!is.na(daily_vaccinations)) %>%
   summarise(daily_vaccinations) %>% 
@@ -114,6 +103,7 @@ totalPeopleVaccinated <- data.frame(totalPeopleVaccinated)
 View(totalPeopleVaccinated)
 new_vaccination_number <- cbind(vaccination_number, totalPeopleVaccinated)
 
+
 options(repr.plot.width = 14, repr.plot.height = 18) # Modification of the size in which the graph is displayed
 plot_vaccination_number <- new_vaccination_number %>%
   hchart('line',
@@ -134,10 +124,11 @@ plot_vaccination_number <- new_vaccination_number %>%
 show(plot_vaccination_number)
 
 
+
 India_vaccinations <- filter(new_vaccination_number, country == "India")
 View(India_vaccinations)
-India_vaccinations$totalPeopleVaccinated<-NULL
-
+str(India_vaccinations)
+India_vaccinations$totalPeopleVaccinated...7<-NULL
 
 totalPeopleVaccinated <- c()
 num <- 0
@@ -149,11 +140,9 @@ for (i in find_sum) {
   totalPeopleVaccinated <- append(totalPeopleVaccinated,num)
   
 }
-
 totalPeopleVaccinated <- data.frame(totalPeopleVaccinated)
 View(totalPeopleVaccinated)
 India_vaccinations <- cbind(India_vaccinations, totalPeopleVaccinated)
-
 
 options(repr.plot.width = 14, repr.plot.height = 18) # Modification of the size in which the graph is displayed
 plot_India_vaccinations <- India_vaccinations %>%
@@ -174,90 +163,26 @@ plot_India_vaccinations <- India_vaccinations %>%
 
 show(plot_India_vaccinations)
 
-India_vaccinations$vaccines<-NULL
-India_vaccinations$country<-NULL
-
-library(caTools)
-split = sample.split(India_vaccinations$totalPeopleVaccinated, SplitRatio = 0.7)
-trainingset = subset(India_vaccinations, split == TRUE)
-testset = subset(India_vaccinations, split == FALSE)
-
-lm.r= lm(formula = totalPeopleVaccinated ~ date,
-         data = trainingset)
-
-coef(lm.r)
-
-ypred = predict(lm.r, newdata = testset)
 
 
-ggplot() + geom_point(aes(x = trainingset$date,
-                          y = trainingset$totalPeopleVaccinated), colour = 'red') +
-  geom_line(aes(x = trainingset$date,
-                y = predict(lm.r, newdata = trainingset)), colour = 'blue') +
-  
-  ggtitle('Date vs Total vaccinations (Training set)') +
-  xlab('Date') +
-  ylab('Total vaccinations')
+#Algorithm
 
-ggplot() +
-  geom_point(aes(x = testset$date, y = testset$totalPeopleVaccinated),
-             colour = 'red') +
-  geom_line(aes(x = trainingset$date,
-                y = predict(lm.r, newdata = trainingset)),
-            colour = 'blue') +
-  ggtitle('Date vs Total vaccinations (Test set)') +
-  xlab('Date') +
-  ylab('Total vaccinations')
+dataset1 <- data.frame(date = India_vaccinations$date, Vaccinated_people = India_vaccinations$totalPeopleVaccinated)
+View(dataset1)
 
+a<-1:385
+print(a)
+day_count <- data.frame(a)
+Dataset <- cbind(dataset1,day_count)
 
+qplot(a, Vaccinated_people, data = Dataset, geom = "point", ylim=c(0,2000000000))+ geom_smooth(method = "lm", se=FALSE)
 
-qplot(date, totalPeopleVaccinated, data = India_vaccinations, geom = "point")
-qplot(date, totalPeopleVaccinated, data = India_vaccinations, geom = "point") + geom_smooth(method =  "lm", se = FALSE)
+model<-lm(Vaccinated_people~a, data = Dataset)
+plot(model$fitted.values)
 
-model <- lm(totalPeopleVaccinated ~ date + daily_vaccinations, data = India_vaccinations)
-summary(model)
+result <- predict(model,data.frame(a = c(500)))
+print(result)
 
-India_vaccinations$residuals <- model$residuals
-India_vaccinations$predicted <- model$fitted.values
-
-predict(model, data.frame(date = c(05-2022), daily_vaccinations = c(700)))
-
-# y <- India_vaccinations$totalPeopleVaccinated
-# 
-# x <- as.matrix(India_vaccinations[-ncol(India_vaccinations)])
-# print(x)
-# 
-# India_vaccinations.formatted <- India_vaccinations %>%
-#   mutate(date = as.numeric(date),
-#          total_vaccinations = as.integer64(daily_vaccinations)) %>%
-#   mutate_at(c('date',
-#               'daily_vaccinations',
-#               'totalPeopleVaccinated',
-#               'daily_vaccinations_per_million'), as.integer)
-# 
-# int <- rep(1, length(y))
-# x <- cbind(int, x)
-# betas <- solve(t(x) %*% x) %*% t(x) %*% y
+cor(Dataset$Vaccinated_people, Dataset$a)
 
 
-
-# install.packages("caTools")
-# library(caTools)
-# sample.split(new_vaccination_number$totalPeopleVaccinated, SplitRatio = 0.75)->split_index
-# train<-subset(new_vaccination_number,split_index==T)
-# test<-subset(new_vaccination_number,split_index==F)
-# nrow(train)
-# nrow(test)
-# 
-# View(new_vaccination_number$country=="Pitcairn")
-# 
-
-
-
-# lm(totalPeopleVaccinated~.,data = train) -> mod1
-# predict(mod1,test)->result
-# cbind(actual=test$totalPeopleVaccinated,predicted=result)->compare_result
-# as.data.frame(compare_result)->compare_result
-# compare_resulr$actual-compare_result$predicted->error
-# cbind(compare_result,error)
-# sqrt(mean(compare_result$error^2))->rmse1
