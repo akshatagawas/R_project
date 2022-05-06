@@ -1,4 +1,3 @@
-library(forecast)
 library(funModeling)
 library(tidyverse)
 library(Hmisc)
